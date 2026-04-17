@@ -11,17 +11,17 @@ namespace BattleSizeUnlocker
         /// <summary>Stable module identifier used by the original mod.</summary>
         public const string ModuleId = "BattleSizeUnlocker";
 
-        private static ModSettings _settings;
+        private ModSettings _settings;
 
         /// <summary>
         /// Gets the cached settings instance used by lifecycle callbacks.
         /// </summary>
-        internal static ModSettings CurrentSettings => _settings;
+        internal ModSettings CurrentSettings => _settings;
 
         /// <summary>
         /// Clears the cached settings instance.
         /// </summary>
-        internal static void ClearCachedSettings()
+        internal void ClearCachedSettings()
         {
             _settings = null;
         }

@@ -8,11 +8,6 @@ namespace BattleSizeUnlocker.Tests
     /// </summary>
     public class MainTests
     {
-        public MainTests()
-        {
-            Main.ClearCachedSettings();
-        }
-
         [Fact]
         public void InitializeSettings_CachesAndAppliesConfiguredBattleSize()
         {
@@ -23,7 +18,7 @@ namespace BattleSizeUnlocker.Tests
 
             testMain.InitializeSettings();
 
-            Assert.Equal(1500, Main.CurrentSettings.CustomBattleSize);
+            Assert.Equal(1500, testMain.CurrentSettings.CustomBattleSize);
             Assert.Collection(testMain.AppliedBattleSizes, battleSize => Assert.Equal(1500, battleSize));
         }
 
@@ -34,7 +29,7 @@ namespace BattleSizeUnlocker.Tests
 
             testMain.InitializeSettings();
 
-            Assert.Null(Main.CurrentSettings);
+            Assert.Null(testMain.CurrentSettings);
             Assert.Empty(testMain.AppliedBattleSizes);
         }
 

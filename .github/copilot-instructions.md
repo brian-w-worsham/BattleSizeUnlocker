@@ -64,7 +64,7 @@ Preserve that behavior unless the user explicitly asks for a functional change.
 - **Parity over invention:** The module shape, setting name, default, range, and lifecycle hooks intentionally follow the decompiled original DLL.
 - **No Harmony patches:** The original mod does not need Harmony, so do not add it unless Bannerlord version drift makes it necessary and the user asks for that tradeoff.
 - **Thin submodule, testable logic:** `Main` stays close to the original implementation while `BattleSizeRuntime` carries the logic that can be unit-tested without the live game runtime.
-- **Cached settings model:** `Main` caches the resolved settings instance so later lifecycle callbacks reuse the same configured value, matching the original DLL's private static field approach.
+- **Cached settings model:** `Main` caches the resolved settings instance so later lifecycle callbacks reuse the same configured value. The original DLL stores that cache in a private static field; keep behavior aligned even if internal implementation details change for testability.
 - **ModLib is a runtime dependency:** The module depends on `ModLib` in `Module/SubModule.xml`; keep that dependency and document it when user-facing behavior changes.
 
 ## Code Conventions
