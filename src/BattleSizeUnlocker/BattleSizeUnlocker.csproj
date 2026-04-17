@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>BattleSizeUnlocker</AssemblyName>
+    <RootNamespace>BattleSizeUnlocker</RootNamespace>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+
+    <!--
+      Set your Bannerlord installation path here.
+      Steam default: C:\Program Files (x86)\Steam\steamapps\common\Mount &amp; Blade II Bannerlord
+    -->
+    <GameFolder>C:\Games\steamapps\common\Mount &amp; Blade II Bannerlord</GameFolder>
+    <OriginalBattleSizeUnlockerFolder>$(MSBuildProjectDirectory)\..\..\downloaded_mod\BattleSizeUnlocker\bin\Win64_Shipping_Client</OriginalBattleSizeUnlockerFolder>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>BattleSizeUnlocker.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="TaleWorlds.Core">
+      <HintPath>$(GameFolder)\bin\Win64_Shipping_Client\TaleWorlds.Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="TaleWorlds.Library">
+      <HintPath>$(GameFolder)\bin\Win64_Shipping_Client\TaleWorlds.Library.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="TaleWorlds.MountAndBlade">
+      <HintPath>$(GameFolder)\bin\Win64_Shipping_Client\TaleWorlds.MountAndBlade.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="TaleWorlds.DotNet">
+      <HintPath>$(GameFolder)\bin\Win64_Shipping_Client\TaleWorlds.DotNet.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ModLib.Definitions">
+      <HintPath>$(OriginalBattleSizeUnlockerFolder)\ModLib.Definitions.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>
