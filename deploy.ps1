@@ -38,6 +38,7 @@ Copy-Item "Module\SubModule.xml" -Destination $TargetModuleDir -Force
 
 $runtimeAssemblies = @(
     "src\BattleSizeUnlocker\bin\$Configuration\net472\BattleSizeUnlocker.dll",
+    "src\BattleSizeUnlocker\bin\$Configuration\net472\0Harmony.dll",
     "src\BattleSizeUnlocker\bin\$Configuration\net472\ModLib.Definitions.dll"
 )
 
@@ -51,8 +52,8 @@ Write-Host "=== Done! ===" -ForegroundColor Green
 Write-Host "Module deployed to: $TargetModuleDir"
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Yellow
-Write-Host "  1. Optional: install and enable ModLib if you want the in-game Mod Options menu"
-Write-Host "  2. Launch Bannerlord"
-Write-Host "  3. Enable 'BattleSizeUnlocker' in the launcher"
-Write-Host "  4. If ModLib is installed, open Options > Mod Options and set the desired battle size"
-Write-Host "  5. Start a field battle or custom battle to verify the larger cap"
+Write-Host "  1. Launch Bannerlord"
+Write-Host "  2. Enable 'BattleSizeUnlocker' in the launcher"
+Write-Host "  3. Load into the campaign map"
+Write-Host "  4. Press Ctrl + Shift + F8 and choose the battle size you want"
+Write-Host "  5. Start a field battle, siege, or custom battle to verify the larger cap"

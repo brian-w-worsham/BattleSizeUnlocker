@@ -39,7 +39,7 @@ namespace BattleSizeUnlocker.Tests
         }
 
         [Fact]
-        public void CustomBattleSize_HasExpandedSettingPropertyMetadata()
+        public void CustomBattleSize_HasSupportedSettingPropertyMetadata()
         {
             PropertyInfo property = typeof(ModSettings).GetProperty(nameof(ModSettings.CustomBattleSize));
             CustomAttributeData attribute = Assert.Single(property.CustomAttributes.Where(data => data.AttributeType.Name.IndexOf("SettingProperty", StringComparison.Ordinal) >= 0));
@@ -47,10 +47,10 @@ namespace BattleSizeUnlocker.Tests
             Assert.Collection(
                 attribute.ConstructorArguments,
                 argument => Assert.Equal("Battle size", argument.Value),
-                argument => Assert.Equal(2, Convert.ToInt32(argument.Value)),
-            argument => Assert.Equal(4000, Convert.ToInt32(argument.Value)),
-                argument => Assert.Equal(2, Convert.ToInt32(argument.Value)),
-            argument => Assert.Equal(4000, Convert.ToInt32(argument.Value)),
+                argument => Assert.Equal(BattleSizeRuntime.MinimumBattleSize, Convert.ToInt32(argument.Value)),
+                argument => Assert.Equal(BattleSizeRuntime.MaximumBattleSize, Convert.ToInt32(argument.Value)),
+                argument => Assert.Equal(BattleSizeRuntime.MinimumBattleSize, Convert.ToInt32(argument.Value)),
+                argument => Assert.Equal(BattleSizeRuntime.MaximumBattleSize, Convert.ToInt32(argument.Value)),
                 argument => Assert.Equal("This setting will override the actual battle size setting for the game.", argument.Value));
         }
     }

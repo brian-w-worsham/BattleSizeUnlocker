@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using System.Collections.Generic;
 using Xunit;
 
@@ -23,18 +25,42 @@ namespace BattleSizeUnlocker.Tests
         }
 
         [Fact]
-        public void InitializeSettings_DoesNotApply_WhenSettingsUnavailable()
+        public void InitializeSettings_AppliesDefaultBattleSize_WhenSettingsUnavailable()
         {
             var testMain = new TestMain();
 
             testMain.InitializeSettings();
 
-            Assert.Null(testMain.CurrentSettings);
-            Assert.Empty(testMain.AppliedBattleSizes);
+            Assert.NotNull(testMain.CurrentSettings);
+            Assert.Equal(500, testMain.CurrentSettings.CustomBattleSize);
+            Assert.Collection(testMain.AppliedBattleSizes, battleSize => Assert.Equal(500, battleSize));
         }
 
         [Fact]
-        public void ApplyBattleSizeForMission_AppliesConfiguredBattleSize_ForFieldBattle()
+        public void InitializeSettings_PrefersLocalSettingsFile_WhenPresent()
+        {
+            var testMain = new TestMain
+            {
+                ResolvedSettings = new ModSettings { CustomBattleSize = 1500 }
+            };
+
+            try
+            {
+                BattleSizeSettingsStore.Save(testMain.SettingsFilePath, new ModSettings { CustomBattleSize = BattleSizeRuntime.MaximumBattleSize });
+
+                testMain.InitializeSettings();
+
+                Assert.Equal(BattleSizeRuntime.MaximumBattleSize, testMain.CurrentSettings.CustomBattleSize);
+                Assert.Collection(testMain.AppliedBattleSizes, battleSize => Assert.Equal(BattleSizeRuntime.MaximumBattleSize, battleSize));
+            }
+            finally
+            {
+                DeleteSettingsFile(testMain.SettingsFilePath);
+            }
+        }
+
+        [Fact]
+        public void ApplyBattleSizeForMission_AppliesConfiguredBattleSize_WhenMissionExists()
         {
             var testMain = new TestMain
             {
@@ -50,7 +76,7 @@ namespace BattleSizeUnlocker.Tests
         }
 
         [Fact]
-        public void ApplyBattleSizeForMission_DoesNothing_ForNonFieldBattle()
+        public void ApplyBattleSizeForMission_DoesNothing_WhenMissionIsMissing()
         {
             var testMain = new TestMain
             {
@@ -63,6 +89,22 @@ namespace BattleSizeUnlocker.Tests
             testMain.ApplyBattleSizeForMission(false);
 
             Assert.Empty(testMain.AppliedBattleSizes);
+        }
+
+        [Fact]
+        public void ApplyBattleSizeForMission_AppliesConfiguredBattleSize_ForSiegeMissionInitialization()
+        {
+            var testMain = new TestMain
+            {
+                ResolvedSettings = new ModSettings { CustomBattleSize = 1300 }
+            };
+
+            testMain.InitializeSettings();
+            testMain.AppliedBattleSizes.Clear();
+
+            testMain.ApplyBattleSizeForMission(true);
+
+            Assert.Collection(testMain.AppliedBattleSizes, battleSize => Assert.Equal(1300, battleSize));
         }
 
         [Fact]
@@ -92,6 +134,40 @@ namespace BattleSizeUnlocker.Tests
         }
 
         [Fact]
+        public void ApplyBattleSizeForApplicationTick_ReappliesBattleSize_WhenRuntimeConfigDrifts()
+        {
+            var testMain = new TestMain
+            {
+                ResolvedSettings = new ModSettings { CustomBattleSize = BattleSizeRuntime.MaximumBattleSize },
+                IsBattleSizeAlreadyApplied = false
+            };
+
+            testMain.InitializeSettings();
+            testMain.AppliedBattleSizes.Clear();
+
+            testMain.ApplyBattleSizeForApplicationTick();
+
+            Assert.Collection(testMain.AppliedBattleSizes, battleSize => Assert.Equal(BattleSizeRuntime.MaximumBattleSize, battleSize));
+        }
+
+        [Fact]
+        public void ApplyBattleSizeForApplicationTick_DoesNothing_WhenRuntimeConfigAlreadyMatches()
+        {
+            var testMain = new TestMain
+            {
+                ResolvedSettings = new ModSettings { CustomBattleSize = BattleSizeRuntime.MaximumBattleSize },
+                IsBattleSizeAlreadyApplied = true
+            };
+
+            testMain.InitializeSettings();
+            testMain.AppliedBattleSizes.Clear();
+
+            testMain.ApplyBattleSizeForApplicationTick();
+
+            Assert.Empty(testMain.AppliedBattleSizes);
+        }
+
+        [Fact]
         public void ModuleId_MatchesOriginalModuleIdentifier()
         {
             Assert.Equal("BattleSizeUnlocker", Main.ModuleId);
@@ -99,7 +175,11 @@ namespace BattleSizeUnlocker.Tests
 
         private sealed class TestMain : Main
         {
+            internal string SettingsFilePath { get; set; } = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"), BattleSizeConfig.SettingsFileName);
+
             internal ModSettings ResolvedSettings { get; set; }
+
+            internal bool IsBattleSizeAlreadyApplied { get; set; }
 
             internal List<int> AppliedBattleSizes { get; } = new List<int>();
 
@@ -111,6 +191,35 @@ namespace BattleSizeUnlocker.Tests
             internal override void ApplyBattleSize(int battleSize)
             {
                 AppliedBattleSizes.Add(battleSize);
+            }
+
+            protected override string GetSettingsFilePath()
+            {
+                return SettingsFilePath;
+            }
+
+            protected override bool IsBattleSizeCurrentlyApplied(int battleSize)
+            {
+                return IsBattleSizeAlreadyApplied;
+            }
+        }
+
+        private static void DeleteSettingsFile(string settingsFilePath)
+        {
+            if (string.IsNullOrWhiteSpace(settingsFilePath))
+            {
+                return;
+            }
+
+            if (File.Exists(settingsFilePath))
+            {
+                File.Delete(settingsFilePath);
+            }
+
+            string directory = Path.GetDirectoryName(settingsFilePath);
+            if (!string.IsNullOrWhiteSpace(directory) && Directory.Exists(directory))
+            {
+                Directory.Delete(directory, true);
             }
         }
     }

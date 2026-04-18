@@ -1,5 +1,7 @@
+using HarmonyLib;
 using System.Reflection;
 using TaleWorlds.Core;
+using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
 namespace BattleSizeUnlocker
@@ -12,7 +14,10 @@ namespace BattleSizeUnlocker
         /// <summary>Stable module identifier used by the original mod.</summary>
         public const string ModuleId = "BattleSizeUnlocker";
 
+        internal const string HarmonyId = "com.battlesizeunlocker.bannerlord";
+
         private ModSettings _settings;
+        private Harmony _harmony;
 
         /// <summary>
         /// Gets the cached settings instance used by lifecycle callbacks.
@@ -27,22 +32,43 @@ namespace BattleSizeUnlocker
             _settings = null;
         }
 
+        /// <inheritdoc />
+        protected override void OnSubModuleLoad()
+        {
+            base.OnSubModuleLoad();
+
+            BattleSizeConfig.Initialize(ResolveSettings, CreateDefaultSettings, GetSettingsFilePath());
+            _settings = BattleSizeConfig.Current;
+
+            _harmony = new Harmony(HarmonyId);
+            _harmony.PatchAll();
+            Patches.MissionAgentSpawnLogicPatches.ApplyPatch(_harmony);
+        }
+
+        /// <inheritdoc />
+        protected override void OnSubModuleUnloaded()
+        {
+            base.OnSubModuleUnloaded();
+            _harmony?.UnpatchAll(HarmonyId);
+        }
+
         /// <summary>
         /// Loads and caches settings, then applies the configured battle size.
         /// </summary>
         internal void InitializeSettings()
         {
-            _settings = BattleSizeRuntime.LoadSettings(ResolveSettings, CreateDefaultSettings);
+            BattleSizeConfig.Initialize(ResolveSettings, CreateDefaultSettings, GetSettingsFilePath());
+            _settings = BattleSizeConfig.Current;
             BattleSizeRuntime.ApplyConfiguredBattleSize(_settings, ApplyBattleSize);
         }
 
         /// <summary>
         /// Re-applies the configured battle size for the current mission when appropriate.
         /// </summary>
-        /// <param name="isFieldBattle">Whether the current mission is a field battle.</param>
-        internal void ApplyBattleSizeForMission(bool isFieldBattle)
+        /// <param name="hasMission">Whether a mission is currently being initialized.</param>
+        internal void ApplyBattleSizeForMission(bool hasMission)
         {
-            if (BattleSizeRuntime.ShouldApplyToMission(isFieldBattle, _settings))
+            if (BattleSizeRuntime.ShouldApplyToMission(hasMission, _settings))
             {
                 ApplyBattleSize(_settings.CustomBattleSize);
             }
@@ -54,6 +80,32 @@ namespace BattleSizeUnlocker
         internal void ApplyBattleSizeForGameStart()
         {
             BattleSizeRuntime.ApplyConfiguredBattleSize(_settings, ApplyBattleSize);
+        }
+
+        /// <summary>
+        /// Re-applies the cached battle size during application ticks whenever Bannerlord has reset its runtime tables.
+        /// </summary>
+        internal void ApplyBattleSizeForApplicationTick()
+        {
+            if (_settings != null && !IsBattleSizeCurrentlyApplied(_settings.CustomBattleSize))
+            {
+                ApplyBattleSize(_settings.CustomBattleSize);
+            }
+        }
+
+        /// <summary>
+        /// Shows the non-ModLib settings screen and persists the selected battle size.
+        /// </summary>
+        internal void ShowSettingsScreen()
+        {
+            BattleSizeHotkeyController.Show(SaveSettings, ApplyBattleSize);
+        }
+
+        internal void SaveSettings(ModSettings settings)
+        {
+            BattleSizeConfig.ReplaceCurrent(settings);
+            BattleSizeConfig.Save(GetSettingsFilePath());
+            _settings = BattleSizeConfig.Current;
         }
 
         /// <summary>
@@ -72,6 +124,29 @@ namespace BattleSizeUnlocker
         protected virtual ModSettings CreateDefaultSettings()
         {
             return new ModSettings();
+        }
+
+        /// <summary>
+        /// Resolves the path used for the local settings file.
+        /// </summary>
+        /// <returns>The settings file path override, or <see langword="null" /> to use the default module path.</returns>
+        protected virtual string GetSettingsFilePath()
+        {
+            return null;
+        }
+
+        /// <summary>
+        /// Determines whether Bannerlord's current runtime config already matches the desired battle size.
+        /// </summary>
+        /// <param name="battleSize">Desired maximum battle size.</param>
+        /// <returns><see langword="true" /> when Bannerlord is already using the desired values.</returns>
+        protected virtual bool IsBattleSizeCurrentlyApplied(int battleSize)
+        {
+            return BattleSizeRuntime.IsBattleSizeApplied(
+                battleSize,
+                BannerlordConfig.GetRealBattleSize,
+                BannerlordConfig.GetRealBattleSizeForSiege,
+                BannerlordConfig.GetRealBattleSizeForSallyOut);
         }
 
         /// <summary>
@@ -108,10 +183,28 @@ namespace BattleSizeUnlocker
         }
 
         /// <inheritdoc />
+        public override void OnGameInitializationFinished(Game game)
+        {
+            base.OnGameInitializationFinished(game);
+            InformationManager.DisplayMessage(
+                new InformationMessage(
+                    $"BattleSizeUnlocker loaded. Press {BattleSizeHotkeyController.HotkeyDisplayText} on the campaign map to open settings.",
+                    Colors.Green));
+        }
+
+        /// <inheritdoc />
         public override void OnMissionBehaviorInitialize(Mission mission)
         {
             base.OnMissionBehaviorInitialize(mission);
-            ApplyBattleSizeForMission(mission != null && mission.IsFieldBattle);
+            ApplyBattleSizeForMission(mission != null);
+        }
+
+        /// <inheritdoc />
+        protected override void OnApplicationTick(float dt)
+        {
+            base.OnApplicationTick(dt);
+            ApplyBattleSizeForApplicationTick();
+            BattleSizeHotkeyController.Tick(Game.Current, ShowSettingsScreen);
         }
 
         /// <inheritdoc />

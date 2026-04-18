@@ -72,7 +72,63 @@ namespace BattleSizeUnlocker.Tests
         }
 
         [Fact]
-        public void ShouldApplyToMission_ReturnsTrue_ForFieldBattleWithSettings()
+        public void IsBattleSizeApplied_ReturnsTrue_WhenAllRuntimeValuesMatch()
+        {
+            bool isApplied = BattleSizeRuntime.IsBattleSizeApplied(
+                BattleSizeRuntime.MaximumBattleSize,
+                () => BattleSizeRuntime.MaximumBattleSize,
+                () => BattleSizeRuntime.MaximumBattleSize,
+                () => BattleSizeRuntime.MaximumBattleSize);
+
+            Assert.True(isApplied);
+        }
+
+        [Fact]
+        public void IsBattleSizeApplied_ReturnsFalse_WhenAnyRuntimeValueDiffers()
+        {
+            bool isApplied = BattleSizeRuntime.IsBattleSizeApplied(
+                BattleSizeRuntime.MaximumBattleSize,
+                () => BattleSizeRuntime.MaximumBattleSize,
+                () => 1000,
+                () => BattleSizeRuntime.MaximumBattleSize);
+
+            Assert.False(isApplied);
+        }
+
+        [Fact]
+        public void NormalizeBattleSize_ClampsValuesAboveSupportedMaximum()
+        {
+            int normalizedBattleSize = BattleSizeRuntime.NormalizeBattleSize(BattleSizeRuntime.MaximumBattleSize + 1960);
+
+            Assert.Equal(BattleSizeRuntime.MaximumBattleSize, normalizedBattleSize);
+        }
+
+        [Fact]
+        public void GetEffectiveSiegeOpeningBattleSize_ReturnsConfiguredBattleSize_WhenNativeAgentLimitIsHigher()
+        {
+            int battleSize = BattleSizeRuntime.GetEffectiveSiegeOpeningBattleSize(new ModSettings { CustomBattleSize = 1800 }, 2500);
+
+            Assert.Equal(1800, battleSize);
+        }
+
+        [Fact]
+        public void GetEffectiveSiegeOpeningBattleSize_UsesNativeAgentLimit_WhenConfiguredBattleSizeIsHigher()
+        {
+            int battleSize = BattleSizeRuntime.GetEffectiveSiegeOpeningBattleSize(new ModSettings { CustomBattleSize = BattleSizeRuntime.MaximumBattleSize }, 2000);
+
+            Assert.Equal(2000, battleSize);
+        }
+
+        [Fact]
+        public void GetEffectiveSiegeOpeningBattleSize_FallsBackToConfiguredBattleSize_WhenAgentLimitIsUnavailable()
+        {
+            int battleSize = BattleSizeRuntime.GetEffectiveSiegeOpeningBattleSize(new ModSettings { CustomBattleSize = 1400 }, 0);
+
+            Assert.Equal(1400, battleSize);
+        }
+
+        [Fact]
+        public void ShouldApplyToMission_ReturnsTrue_WhenMissionExistsAndSettingsExist()
         {
             bool shouldApply = BattleSizeRuntime.ShouldApplyToMission(true, new ModSettings());
 
@@ -80,7 +136,7 @@ namespace BattleSizeUnlocker.Tests
         }
 
         [Fact]
-        public void ShouldApplyToMission_ReturnsFalse_ForNonFieldBattle()
+        public void ShouldApplyToMission_ReturnsFalse_WhenMissionDoesNotExist()
         {
             bool shouldApply = BattleSizeRuntime.ShouldApplyToMission(false, new ModSettings());
 
@@ -98,29 +154,29 @@ namespace BattleSizeUnlocker.Tests
         [Fact]
         public void CreateBattleSizeOverride_UsesHighestValidOptionIndex()
         {
-            var battleSizeOverride = BattleSizeRuntime.CreateBattleSizeOverride(4000);
+            var battleSizeOverride = BattleSizeRuntime.CreateBattleSizeOverride(BattleSizeRuntime.MaximumBattleSize);
 
             Assert.Equal(6, battleSizeOverride.BattleSizeIndex);
         }
 
         [Fact]
-        public void CreateBattleSizeOverride_PreservesVanillaTables_ForBattleSize1000()
+        public void CreateBattleSizeOverride_UsesRequestedMaximumForEveryBattleCategory_ForBattleSize1000()
         {
             var battleSizeOverride = BattleSizeRuntime.CreateBattleSizeOverride(1000);
 
             Assert.Equal(new[] { 200, 300, 400, 500, 600, 800, 1000 }, battleSizeOverride.BattleSizes);
             Assert.Equal(new[] { 150, 230, 320, 425, 540, 625, 1000 }, battleSizeOverride.SiegeBattleSizes);
-            Assert.Equal(new[] { 150, 200, 240, 280, 320, 360, 400 }, battleSizeOverride.SallyOutBattleSizes);
+            Assert.Equal(new[] { 375, 500, 600, 700, 800, 900, 1000 }, battleSizeOverride.SallyOutBattleSizes);
         }
 
         [Fact]
-        public void CreateBattleSizeOverride_ScalesBattleTables_ForBattleSize4000()
+        public void CreateBattleSizeOverride_ScalesBattleTables_ForSupportedMaximum()
         {
-            var battleSizeOverride = BattleSizeRuntime.CreateBattleSizeOverride(4000);
+            var battleSizeOverride = BattleSizeRuntime.CreateBattleSizeOverride(BattleSizeRuntime.MaximumBattleSize);
 
-            Assert.Equal(new[] { 800, 1200, 1600, 2000, 2400, 3200, 4000 }, battleSizeOverride.BattleSizes);
-            Assert.Equal(new[] { 600, 920, 1280, 1700, 2160, 2500, 4000 }, battleSizeOverride.SiegeBattleSizes);
-            Assert.Equal(new[] { 600, 800, 960, 1120, 1280, 1440, 1600 }, battleSizeOverride.SallyOutBattleSizes);
+            Assert.Equal(new[] { 408, 612, 816, 1020, 1224, 1632, 2040 }, battleSizeOverride.BattleSizes);
+            Assert.Equal(new[] { 306, 469, 653, 867, 1102, 1275, 2040 }, battleSizeOverride.SiegeBattleSizes);
+            Assert.Equal(new[] { 765, 1020, 1224, 1428, 1632, 1836, 2040 }, battleSizeOverride.SallyOutBattleSizes);
         }
 
         [Fact]
