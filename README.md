@@ -2,17 +2,18 @@
 
 Expands Bannerlord's battle size range and applies your chosen value to campaign, sandbox, and custom battles.
 
-This project is a clean-room reimplementation of the original Battle Size Unlocker mod after inspecting the downloaded `BattleSizeUnlocker.dll` with ILSpy. The implementation intentionally mirrors the original behavior closely:
+This project is a clean-room reimplementation of the original Battle Size Unlocker mod after inspecting the downloaded `BattleSizeUnlocker.dll` with ILSpy. The implementation intentionally mirrors the original behavior closely, with two explicit project changes: the maximum battle size has been raised to `4000`, and the hard launcher dependency on `ModLib` has been removed so the module can be enabled even when `ModLib` is not installed.
 
-- Uses a ModLib-backed in-game setting named **Battle size**
-- Keeps the original setting range of **2-2048**
+- Uses the original ModLib-backed setting metadata when available
+- Expands the setting range to **2-4000**
 - Defaults the configured battle size to **500**
 - Applies the configured size during module-root initialization, game start, and field-battle mission initialization
 
 ## Features
 
 - **Expanded battle size range:** Goes beyond the base game's 200-1000 range
-- **Mod Options integration:** Uses ModLib so players can change the value in-game
+- **Launcher-safe by default:** No `ModLib` module dependency is required just to enable the mod
+- **Optional Mod Options integration:** If `ModLib` is installed, the original-style setting metadata is still present
 - **Campaign, Sandbox, and Custom Battle support:** Matches the original mod's intended scope
 - **Minimal runtime behavior:** No Harmony patches or save editing, just writes the configured value into `BannerlordConfig.BattleSize`
 
@@ -20,17 +21,21 @@ This project is a clean-room reimplementation of the original Battle Size Unlock
 
 The original mod does not patch combat logic directly. After reverse-engineering the downloaded binary, the controlling behavior is:
 
-1. Load `ModSettings.Instance`
+1. Try to load `ModSettings.Instance`
 2. Read `CustomBattleSize`
-3. Assign that value to `BannerlordConfig.BattleSize`
+3. Apply that value to Bannerlord's battle-size configuration
 4. Re-apply it at key lifecycle points so Bannerlord keeps the configured cap
+
+If the optional ModLib settings path is unavailable, the mod falls back to its default settings and still loads.
+
+On current Bannerlord builds, `BannerlordConfig.BattleSize` is no longer a raw troop-count value. It is an option index into internal battle-size tables. This implementation adapts to that by rewriting Bannerlord's internal battle-size tables and selecting the highest valid option index, which avoids the siege-load crash caused by writing raw values like `500` or `4000` directly into the config index.
 
 Our implementation follows the same model.
 
 ## Prerequisites
 
 - **Mount & Blade II: Bannerlord** installed locally
-- **ModLib** installed in Bannerlord, because this module depends on it for the in-game settings UI
+- **ModLib** is optional. Install it only if you want the in-game Mod Options UI for this module.
 - **.NET Framework 4.7.2 targeting pack**
 - **Visual Studio 2022** or the **.NET SDK**
 - The downloaded original mod kept at `downloaded_mod/BattleSizeUnlocker/` for local source-reference work and the `ModLib.Definitions.dll` build reference
@@ -84,19 +89,19 @@ Or with a custom Bannerlord path:
 
 ## Player Installation
 
-1. Install **ModLib** in Bannerlord first.
-2. Copy this module into `<Bannerlord>\Modules\BattleSizeUnlocker\`.
+1. Copy this module into `<Bannerlord>\Modules\BattleSizeUnlocker\`.
+2. Install **ModLib** only if you want the in-game **Mod Options** menu for this module.
 3. Make sure the folder contains:
    - `Module\SubModule.xml`
    - `bin\Win64_Shipping_Client\BattleSizeUnlocker.dll`
    - `bin\Win64_Shipping_Client\ModLib.Definitions.dll`
 4. Open the Bannerlord launcher.
-5. Enable **ModLib** and **BattleSizeUnlocker**.
-6. Keep **BattleSizeUnlocker** below the official TaleWorlds modules and below **ModLib** in load order.
+5. Enable **BattleSizeUnlocker**.
+6. If you also use **ModLib**, enable it too and keep **BattleSizeUnlocker** below it in load order.
 
 ## Changing the Setting
 
-If ModLib is installed correctly, change the setting in-game:
+If ModLib is installed and enabled, change the setting in-game:
 
 1. Launch Bannerlord.
 2. Open **Options**.
@@ -107,10 +112,12 @@ If ModLib is installed correctly, change the setting in-game:
 Allowed range:
 
 - Minimum: `2`
-- Maximum: `2048`
+- Maximum: `4000`
 - Default: `500`
 
-Values well above `1000` can cause performance issues or crashes depending on your hardware and the battle.
+Values well above `1000`, especially at the new upper end of the range, can cause performance issues or crashes depending on your hardware and the battle.
+
+If ModLib is not installed, the mod still loads and uses its default battle size of `500`.
 
 ## How To Confirm It Works In Game
 
@@ -124,10 +131,10 @@ Use one of these checks:
 
 If the mod is not working, first check:
 
-- **ModLib is installed and enabled**
 - **BattleSizeUnlocker is enabled**
-- **BattleSizeUnlocker is loaded after ModLib**
 - The module files were copied into the correct `Modules\BattleSizeUnlocker\` folder
+- If you want the in-game setting menu, **ModLib is installed and enabled**
+- If you use ModLib, **BattleSizeUnlocker** is loaded after it
 
 ## Reverse-Engineering Notes
 
@@ -144,8 +151,13 @@ Using ILSpy, the original DLL was confirmed to:
 - Expose `CustomBattleSize` with the range `2-2048` and default `500`
 - Write `BannerlordConfig.BattleSize` in `OnBeforeInitialModuleScreenSetAsRoot`, `OnMissionBehaviourInitialize` for field battles, and `OnGameStart`
 
+This project intentionally extends the original maximum from `2048` to `4000` at the user's request.
+This project also removes the original hard `ModLib` launcher dependency so the module can be enabled without installing the full ModLib module.
+This project also adapts the original 2020 implementation to current Bannerlord builds where battle size is stored as a config index rather than a direct troop-count value.
+
 ## Compatibility
 
 - Designed for Bannerlord builds where `BannerlordConfig.BattleSize` is available
-- Requires **ModLib** for the in-game configuration menu
+- Does not require **ModLib** to enable in the launcher
+- **ModLib** remains optional for in-game configuration UI
 - High battle sizes can stress the engine and your hardware

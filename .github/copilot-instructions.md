@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Bannerlord mod that expands the battle size range by reading a ModLib-backed setting and applying it to `BannerlordConfig.BattleSize` during key Bannerlord lifecycle events. This project is intended to closely mirror the behavior of the original Battle Size Unlocker mod after reverse-engineering its downloaded binary with ILSpy.
+Bannerlord mod that expands the battle size range by reading the original ModLib-style setting when available and applying it to `BannerlordConfig.BattleSize` during key Bannerlord lifecycle events. If the ModLib settings path is unavailable, the mod falls back to default settings so the module can still be enabled and used.
 
 ## Tech Stack
 
@@ -51,13 +51,19 @@ ILSpy inspection of the original DLL confirmed:
 
 Preserve that behavior unless the user explicitly asks for a functional change.
 
+Current intentional divergence from the original mod:
+
+- The project now exposes a `CustomBattleSize` maximum of `4000` instead of the original `2048`
+- The project no longer declares `ModLib` as a hard launcher dependency; it falls back to default settings when ModLib-backed settings resolution is unavailable
+- The project adapts the original direct `BannerlordConfig.BattleSize` assignment to current Bannerlord builds by rewriting the internal battle-size tables and using the highest valid battle-size option index
+
 ## Architecture
 
 | File | Role |
 |------|------|
 | `Main.cs` | Bannerlord submodule entry point; caches settings and applies the configured battle size during lifecycle events |
-| `ModSettings.cs` | ModLib-backed settings definition that exposes the in-game `Battle size` option |
-| `BattleSizeRuntime.cs` | Small, testable decision layer for loading settings and deciding when to apply them |
+| `ModSettings.cs` | Settings definition that preserves the original ModLib metadata surface for optional in-game configuration |
+| `BattleSizeRuntime.cs` | Small, testable decision layer for loading settings, falling back to defaults, and deciding when to apply them |
 
 ### Key Design Decisions
 
@@ -65,7 +71,8 @@ Preserve that behavior unless the user explicitly asks for a functional change.
 - **No Harmony patches:** The original mod does not need Harmony, so do not add it unless Bannerlord version drift makes it necessary and the user asks for that tradeoff.
 - **Thin submodule, testable logic:** `Main` stays close to the original implementation while `BattleSizeRuntime` carries the logic that can be unit-tested without the live game runtime.
 - **Cached settings model:** `Main` caches the resolved settings instance so later lifecycle callbacks reuse the same configured value. The original DLL stores that cache in a private static field; keep behavior aligned even if internal implementation details change for testability.
-- **ModLib is a runtime dependency:** The module depends on `ModLib` in `Module/SubModule.xml`; keep that dependency and document it when user-facing behavior changes.
+- **Optional settings integration:** The module still references `ModLib.Definitions.dll`, but `Module/SubModule.xml` no longer depends on the `ModLib` module. If settings resolution fails, the mod falls back to default settings instead of blocking launcher enablement.
+- **Current build compatibility:** Bannerlord `v1.3.15` stores battle size as an index into internal battle-size tables. Do not assign raw troop counts directly to `BannerlordConfig.BattleSize`; rewrite the private tables and set a valid index instead.
 
 ## Code Conventions
 
@@ -80,10 +87,10 @@ Preserve that behavior unless the user explicitly asks for a functional change.
 `Module/SubModule.xml` currently defines:
 
 - **Name / Id:** `BattleSizeUnlocker`
-- **Dependencies:** `Native`, `SandBoxCore`, `Sandbox`, `CustomBattle`, `StoryMode`, `ModLib`
+- **Dependencies:** `Native`, `SandBoxCore`, `Sandbox`, `CustomBattle`, `StoryMode`
 - **Entry point:** `BattleSizeUnlocker.Main`
 
-Keep the `ModLib` dependency unless the settings approach is intentionally changed.
+Do not reintroduce a hard `ModLib` launcher dependency unless the user explicitly asks for it.
 
 ## Post-Change Workflow
 

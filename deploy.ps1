@@ -51,8 +51,8 @@ Write-Host "=== Done! ===" -ForegroundColor Green
 Write-Host "Module deployed to: $TargetModuleDir"
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Yellow
-Write-Host "  1. Make sure the ModLib module is installed and enabled above BattleSizeUnlocker"
+Write-Host "  1. Optional: install and enable ModLib if you want the in-game Mod Options menu"
 Write-Host "  2. Launch Bannerlord"
 Write-Host "  3. Enable 'BattleSizeUnlocker' in the launcher"
-Write-Host "  4. Open Options > Mod Options and set the desired battle size"
+Write-Host "  4. If ModLib is installed, open Options > Mod Options and set the desired battle size"
 Write-Host "  5. Start a field battle or custom battle to verify the larger cap"

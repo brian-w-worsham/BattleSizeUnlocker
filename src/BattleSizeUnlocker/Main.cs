@@ -1,3 +1,4 @@
+using System.Reflection;
 using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade;
 
@@ -31,7 +32,7 @@ namespace BattleSizeUnlocker
         /// </summary>
         internal void InitializeSettings()
         {
-            _settings = BattleSizeRuntime.LoadSettings(ResolveSettings);
+            _settings = BattleSizeRuntime.LoadSettings(ResolveSettings, CreateDefaultSettings);
             BattleSizeRuntime.ApplyConfiguredBattleSize(_settings, ApplyBattleSize);
         }
 
@@ -65,12 +66,38 @@ namespace BattleSizeUnlocker
         }
 
         /// <summary>
+        /// Creates the fallback settings instance used when external settings resolution is unavailable.
+        /// </summary>
+        /// <returns>A default settings instance.</returns>
+        protected virtual ModSettings CreateDefaultSettings()
+        {
+            return new ModSettings();
+        }
+
+        /// <summary>
         /// Applies the supplied battle size to Bannerlord's configuration.
         /// </summary>
         /// <param name="battleSize">Battle size value to write.</param>
         internal virtual void ApplyBattleSize(int battleSize)
         {
-            BannerlordConfig.BattleSize = battleSize;
+            var battleSizeOverride = BattleSizeRuntime.CreateBattleSizeOverride(battleSize);
+
+            // Current Bannerlord builds store BattleSize as an option index, so we rewrite
+            // the internal size tables and select the highest valid index instead of writing
+            // the raw troop count directly into BannerlordConfig.BattleSize.
+            BannerlordConfig.BattleSize = battleSizeOverride.BattleSizeIndex;
+            SetBattleSizeTable("_battleSizes", battleSizeOverride.BattleSizes);
+            SetBattleSizeTable("_siegeBattleSizes", battleSizeOverride.SiegeBattleSizes);
+            SetBattleSizeTable("_sallyOutBattleSizes", battleSizeOverride.SallyOutBattleSizes);
+        }
+
+        private static void SetBattleSizeTable(string fieldName, int[] values)
+        {
+            FieldInfo field = typeof(BannerlordConfig).GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Static);
+            if (field != null)
+            {
+                field.SetValue(null, values);
+            }
         }
 
         /// <inheritdoc />
