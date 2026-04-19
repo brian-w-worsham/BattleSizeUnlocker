@@ -8,7 +8,7 @@ using Xunit;
 namespace BattleSizeUnlocker.Tests
 {
     /// <summary>
-    /// Tests for the siege-specific MissionAgentSpawnLogic Harmony patch.
+    /// Tests for the MissionAgentSpawnLogic Harmony patch.
     /// </summary>
     public class MissionAgentSpawnLogicPatchTests
     {

@@ -6,8 +6,9 @@ using TaleWorlds.MountAndBlade;
 namespace BattleSizeUnlocker.Patches
 {
     /// <summary>
-    /// Adjusts siege mission spawn logic so the opening deployment can use the engine's full agent ceiling
-    /// instead of Bannerlord's conservative half-agent troop clamp.
+    /// Adjusts mission spawn logic so the opening deployment can exceed Bannerlord's conservative
+    /// half-agent troop clamp. Siege and sally-out missions use the engine's full agent ceiling;
+    /// field battles use a reduced ceiling that reserves agent slots for cavalry mounts.
     /// </summary>
     internal static class MissionAgentSpawnLogicPatches
     {
@@ -28,7 +29,7 @@ namespace BattleSizeUnlocker.Patches
             {
                 InformationManager.DisplayMessage(
                     new InformationMessage(
-                        "[BattleSizeUnlocker] ERROR: MissionAgentSpawnLogic constructor not found — siege cap patch not applied.",
+                        "[BattleSizeUnlocker] ERROR: MissionAgentSpawnLogic constructor not found — opening troop cap patch not applied.",
                         Colors.Red));
                 return;
             }
@@ -43,16 +44,23 @@ namespace BattleSizeUnlocker.Patches
                 int engineAgentCeiling = MissionAgentSpawnLogic.MaxNumberOfAgentsForMission;
                 int battleSizeBeforeAdjust = __instance.BattleSize;
 
-                if (battleSizeType == Mission.BattleSizeType.Siege)
+                int adjustedBattleSize;
+                if (battleSizeType == Mission.BattleSizeType.Battle)
                 {
-                    int adjustedBattleSize = BattleSizeRuntime.GetEffectiveSiegeOpeningBattleSize(
+                    adjustedBattleSize = BattleSizeRuntime.GetEffectiveFieldBattleSize(
                         BattleSizeConfig.Current,
                         engineAgentCeiling);
+                }
+                else
+                {
+                    adjustedBattleSize = BattleSizeRuntime.GetEffectiveOpeningBattleSize(
+                        BattleSizeConfig.Current,
+                        engineAgentCeiling);
+                }
 
-                    if (adjustedBattleSize > battleSizeBeforeAdjust)
-                    {
-                        BattleSizeField(__instance) = adjustedBattleSize;
-                    }
+                if (adjustedBattleSize > battleSizeBeforeAdjust)
+                {
+                    BattleSizeField(__instance) = adjustedBattleSize;
                 }
             }
         }

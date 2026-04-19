@@ -12,6 +12,14 @@ namespace BattleSizeUnlocker
 
         internal const int MaximumBattleSize = 2040;
 
+        /// <summary>
+        /// Fraction of the native agent ceiling used as the field battle troop cap.
+        /// Field battles include cavalry mounts as separate agents, so the full ceiling
+        /// is not safe. Two-thirds handles up to 50 % cavalry composition:
+        /// <c>troops × 1.5 ≤ agentCeiling</c> ⟹ <c>troops ≤ agentCeiling × 2/3</c>.
+        /// </summary>
+        internal const double FieldBattleMountReserveFraction = 2.0 / 3.0;
+
         internal sealed class BattleSizeOverride
         {
             internal BattleSizeOverride(int battleSizeIndex, int[] battleSizes, int[] siegeBattleSizes, int[] sallyOutBattleSizes)
@@ -150,12 +158,12 @@ namespace BattleSizeUnlocker
         }
 
         /// <summary>
-        /// Calculates the maximum opening siege battle size that can fit within Bannerlord's native agent ceiling.
+        /// Calculates the maximum opening battle size that can fit within Bannerlord's native agent ceiling.
         /// </summary>
         /// <param name="settings">Resolved settings instance.</param>
         /// <param name="maxNumberOfAgentsForMission">Native engine agent limit for the current mission.</param>
-        /// <returns>The desired siege opening battle size, capped by the agent ceiling.</returns>
-        internal static int GetEffectiveSiegeOpeningBattleSize(ModSettings settings, int maxNumberOfAgentsForMission)
+        /// <returns>The desired opening battle size, capped by the agent ceiling.</returns>
+        internal static int GetEffectiveOpeningBattleSize(ModSettings settings, int maxNumberOfAgentsForMission)
         {
             int desiredBattleSize = GetEffectiveBattleSize(settings);
             if (maxNumberOfAgentsForMission <= 0)
@@ -164,6 +172,26 @@ namespace BattleSizeUnlocker
             }
 
             return Math.Min(desiredBattleSize, maxNumberOfAgentsForMission);
+        }
+
+        /// <summary>
+        /// Calculates the maximum opening battle size for field battles, reserving agent slots for
+        /// cavalry mounts. Uses <see cref="FieldBattleMountReserveFraction"/> of the native agent
+        /// ceiling so mounted troops do not overrun the engine's hard agent limit.
+        /// </summary>
+        /// <param name="settings">Resolved settings instance.</param>
+        /// <param name="maxNumberOfAgentsForMission">Native engine agent limit for the current mission.</param>
+        /// <returns>The desired opening battle size, reduced to fit the mount-aware ceiling.</returns>
+        internal static int GetEffectiveFieldBattleSize(ModSettings settings, int maxNumberOfAgentsForMission)
+        {
+            int desiredBattleSize = GetEffectiveBattleSize(settings);
+            if (maxNumberOfAgentsForMission <= 0)
+            {
+                return desiredBattleSize;
+            }
+
+            int safeFieldCeiling = (int)(maxNumberOfAgentsForMission * FieldBattleMountReserveFraction);
+            return Math.Min(desiredBattleSize, safeFieldCeiling);
         }
 
         /// <summary>

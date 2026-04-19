@@ -104,27 +104,68 @@ namespace BattleSizeUnlocker.Tests
         }
 
         [Fact]
-        public void GetEffectiveSiegeOpeningBattleSize_ReturnsConfiguredBattleSize_WhenNativeAgentLimitIsHigher()
+        public void GetEffectiveOpeningBattleSize_ReturnsConfiguredBattleSize_WhenNativeAgentLimitIsHigher()
         {
-            int battleSize = BattleSizeRuntime.GetEffectiveSiegeOpeningBattleSize(new ModSettings { CustomBattleSize = 1800 }, 2500);
+            int battleSize = BattleSizeRuntime.GetEffectiveOpeningBattleSize(new ModSettings { CustomBattleSize = 1800 }, 2500);
 
             Assert.Equal(1800, battleSize);
         }
 
         [Fact]
-        public void GetEffectiveSiegeOpeningBattleSize_UsesNativeAgentLimit_WhenConfiguredBattleSizeIsHigher()
+        public void GetEffectiveOpeningBattleSize_UsesNativeAgentLimit_WhenConfiguredBattleSizeIsHigher()
         {
-            int battleSize = BattleSizeRuntime.GetEffectiveSiegeOpeningBattleSize(new ModSettings { CustomBattleSize = BattleSizeRuntime.MaximumBattleSize }, 2000);
+            int battleSize = BattleSizeRuntime.GetEffectiveOpeningBattleSize(new ModSettings { CustomBattleSize = BattleSizeRuntime.MaximumBattleSize }, 2000);
 
             Assert.Equal(2000, battleSize);
         }
 
         [Fact]
-        public void GetEffectiveSiegeOpeningBattleSize_FallsBackToConfiguredBattleSize_WhenAgentLimitIsUnavailable()
+        public void GetEffectiveOpeningBattleSize_FallsBackToConfiguredBattleSize_WhenAgentLimitIsUnavailable()
         {
-            int battleSize = BattleSizeRuntime.GetEffectiveSiegeOpeningBattleSize(new ModSettings { CustomBattleSize = 1400 }, 0);
+            int battleSize = BattleSizeRuntime.GetEffectiveOpeningBattleSize(new ModSettings { CustomBattleSize = 1400 }, 0);
 
             Assert.Equal(1400, battleSize);
+        }
+
+        [Fact]
+        public void GetEffectiveFieldBattleSize_AppliesMountReserveFraction_WhenConfiguredSizeExceedsSafeCeiling()
+        {
+            // 2040 * 2/3 = 1360
+            int battleSize = BattleSizeRuntime.GetEffectiveFieldBattleSize(
+                new ModSettings { CustomBattleSize = BattleSizeRuntime.MaximumBattleSize }, 2040);
+
+            Assert.Equal(1360, battleSize);
+        }
+
+        [Fact]
+        public void GetEffectiveFieldBattleSize_ReturnsConfiguredSize_WhenBelowSafeCeiling()
+        {
+            int battleSize = BattleSizeRuntime.GetEffectiveFieldBattleSize(
+                new ModSettings { CustomBattleSize = 800 }, 2040);
+
+            Assert.Equal(800, battleSize);
+        }
+
+        [Fact]
+        public void GetEffectiveFieldBattleSize_FallsBackToConfiguredSize_WhenAgentLimitIsUnavailable()
+        {
+            int battleSize = BattleSizeRuntime.GetEffectiveFieldBattleSize(
+                new ModSettings { CustomBattleSize = 1400 }, 0);
+
+            Assert.Equal(1400, battleSize);
+        }
+
+        [Fact]
+        public void GetEffectiveFieldBattleSize_IsLowerThanOpeningBattleSize_AtSameAgentCeiling()
+        {
+            var settings = new ModSettings { CustomBattleSize = BattleSizeRuntime.MaximumBattleSize };
+            int agentCeiling = 2040;
+
+            int fieldSize = BattleSizeRuntime.GetEffectiveFieldBattleSize(settings, agentCeiling);
+            int siegeSize = BattleSizeRuntime.GetEffectiveOpeningBattleSize(settings, agentCeiling);
+
+            Assert.True(fieldSize < siegeSize,
+                $"Field battle size ({fieldSize}) should be lower than siege size ({siegeSize}) to reserve agent slots for mounts.");
         }
 
         [Fact]

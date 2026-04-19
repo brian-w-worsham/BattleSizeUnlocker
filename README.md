@@ -17,7 +17,7 @@ This project is a clean-room reimplementation of the original Battle Size Unlock
 - **Optional Mod Options compatibility:** If `ModLib` is installed, the original-style setting metadata still exists as a fallback path
 - **Campaign, Sandbox, and Custom Battle support:** Matches the original mod's intended scope
 - **Pre-spawn compatibility fix:** Uses a small Harmony patch so current Bannerlord builds read the configured battle size before mission spawn logic captures the initial deployment cap
-- **Siege opening cap fix:** Lifts Bannerlord's conservative half-agent siege clamp up to the engine's full agent ceiling so opening siege deployments can exceed the vanilla ~1000-troop cap when the engine allows it
+- **Opening troop cap fix:** Lifts Bannerlord's conservative half-agent mission clamp. Siege and sally-out openings use the engine's full agent ceiling; field battles use two-thirds of the ceiling to reserve agent slots for cavalry mounts, giving ~33 % more troops than vanilla while staying crash-safe
 
 ## How It Works
 
@@ -41,7 +41,7 @@ On current Bannerlord builds, `BannerlordConfig.BattleSize` is no longer a raw t
 
 Current Bannerlord builds also capture the opening mission battle size before `OnMissionBehaviorInitialize` runs. To keep the configured value active for the first siege deployment wave, this reimplementation now patches `BannerlordConfig.GetRealBattleSize`, `GetRealBattleSizeForSiege`, and `GetRealBattleSizeForSallyOut` with Harmony so those early reads return the configured size.
 
-Current Bannerlord builds also clamp `MissionAgentSpawnLogic` to half of the native mission-agent ceiling, which keeps siege openings near the vanilla ~1000-troop limit on many installs. This reimplementation raises the siege-only opening cap back up to the engine agent ceiling, while still respecting whatever native maximum Bannerlord reports for the current build.
+Current Bannerlord builds also clamp `MissionAgentSpawnLogic` to half of the native mission-agent ceiling, which keeps opening deployments near the vanilla ~1000-troop limit on many installs. This reimplementation raises that opening cap: siege and sally-out missions use the full engine agent ceiling (no mounts in sieges), while field battles use two-thirds of the ceiling to reserve agent slots for cavalry mounts (~1360 troops at the 2040 ceiling, up from vanilla's ~1020).
 
 The rewritten tables now use your configured value as the top end for field battles, sieges, and sally-out battles alike. Setting the mod to `2040` therefore makes the highest option in each category resolve to `2040`.
 
@@ -160,7 +160,7 @@ If the mod is not working, first check:
 - You are on the **campaign map** when pressing **Ctrl + Shift + F8**
 - The file `BattleSizeUnlocker.settings.xml` is writable inside the module folder
 
-If siege openings still do not reach the configured value, Bannerlord is likely hitting its native agent ceiling for the current build or scene. The mod now removes the conservative managed half-cap for siege openings, but it still does not bypass the engine's real agent limit.
+If siege or sally-out openings still do not reach the configured value, Bannerlord is likely hitting its native agent ceiling for the current build or scene. The mod removes the conservative managed half-cap for those mission openings, but it still does not bypass the engine's real agent limit.
 
 ## Reverse-Engineering Notes
 

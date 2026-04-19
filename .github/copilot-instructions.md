@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Bannerlord mod that expands the battle size range by loading the selected value from a local XML settings file, with the original ModLib-style setting path retained only as a fallback compatibility source. On current Bannerlord builds, the mod rewrites the internal battle-size tables, selects a valid `BannerlordConfig.BattleSize` option index, uses Harmony to override the early `BannerlordConfig.GetRealBattleSize*` reads that mission spawn logic captures before the first siege deployment wave, and lifts Bannerlord's conservative siege-only half-agent clamp back up to the engine's reported agent ceiling. The user-facing configuration path is a built-in hotkey screen opened with `Ctrl + Shift + F8` on the campaign map.
+Bannerlord mod that expands the battle size range by loading the selected value from a local XML settings file, with the original ModLib-style setting path retained only as a fallback compatibility source. On current Bannerlord builds, the mod rewrites the internal battle-size tables, selects a valid `BannerlordConfig.BattleSize` option index, uses Harmony to override the early `BannerlordConfig.GetRealBattleSize*` reads that mission spawn logic captures before the first deployment wave, and lifts Bannerlord's conservative half-agent mission clamp for all mission types — siege and sally-out openings use the full agent ceiling, field battles use two-thirds of the ceiling to reserve agent slots for cavalry mounts. The user-facing configuration path is a built-in hotkey screen opened with `Ctrl + Shift + F8` on the campaign map.
 
 ## Tech Stack
 
@@ -61,7 +61,7 @@ Current intentional divergence from the original mod:
 - The active battle size is now primarily stored in `BattleSizeUnlocker.settings.xml`, edited through a built-in `Ctrl + Shift + F8` hotkey screen on the campaign map
 - The mod now also reapplies the configured battle size during application ticks because current Bannerlord builds can reset the runtime tables before siege spawn logic captures them
 - The mod now also patches `BannerlordConfig.GetRealBattleSize`, `GetRealBattleSizeForSiege`, and `GetRealBattleSizeForSallyOut` so current Bannerlord builds capture the configured troop count before `MissionAgentSpawnLogic` freezes the opening deployment size
-- The mod now also patches the `MissionAgentSpawnLogic` constructor for siege missions so Bannerlord no longer cuts the opening troop cap to half of the native mission-agent ceiling
+- The mod now also patches the `MissionAgentSpawnLogic` constructor so Bannerlord no longer cuts the opening troop cap to half of the native mission-agent ceiling — siege and sally-out missions use the full ceiling, field battles use two-thirds to account for cavalry mounts
 
 ## Architecture
 
@@ -74,20 +74,20 @@ Current intentional divergence from the original mod:
 | `ModSettings.cs` | Settings definition that preserves the original ModLib metadata surface for optional in-game configuration |
 | `BattleSizeRuntime.cs` | Small, testable decision layer for loading settings, falling back to defaults, and deciding when to apply them |
 | `Patches/BattleSizeGetterPatches.cs` | Harmony prefixes that force early battle-size reads to use the configured value before mission spawn logic captures them |
-| `Patches/MissionAgentSpawnLogicPatches.cs` | Harmony constructor postfix that lifts the siege opening troop cap from the conservative half-agent clamp up to the engine agent ceiling |
+| `Patches/MissionAgentSpawnLogicPatches.cs` | Harmony constructor postfix that lifts the opening troop cap from the conservative half-agent clamp — full ceiling for siege/sally-out, two-thirds for field battles (mount reserve) |
 
 ### Key Design Decisions
 
 - **Parity over invention:** The module shape, setting name, default, range, and lifecycle hooks intentionally follow the decompiled original DLL.
 - **Measured Harmony use:** The original mod did not need Harmony, but current Bannerlord builds capture siege deployment size too early for the original lifecycle hooks. Keep Harmony usage limited to the `GetRealBattleSize*` compatibility patch unless the user asks for a broader change.
-- **Native ceiling awareness:** Siege openings are still bounded by Bannerlord's native agent ceiling. The managed patch removes the conservative `/ 2` troop clamp for siege openings, but it should not pretend to exceed the engine's real agent limit.
+- **Native ceiling awareness:** Mission openings are still bounded by Bannerlord's native agent ceiling. The managed patch removes the conservative `/ 2` troop clamp for siege-style opening deployments, but it should not pretend to exceed the engine's real agent limit.
 - **Thin submodule, testable logic:** `Main` stays close to the original implementation while `BattleSizeRuntime` carries the logic that can be unit-tested without the live game runtime.
 - **Cached settings model:** `Main` caches the resolved settings instance so later lifecycle callbacks reuse the same configured value. The original DLL stores that cache in a private static field; keep behavior aligned even if internal implementation details change for testability.
 - **Local settings first:** `BattleSizeUnlocker.settings.xml` is the primary source of truth. ModLib is only a compatibility fallback if the local file does not exist yet.
 - **Hotkey-driven configuration:** The supported user flow is `Ctrl + Shift + F8` on the campaign map, which opens a built-in multi-selection inquiry and saves the chosen value immediately.
 - **Current build compatibility:** Bannerlord `v1.3.15` stores battle size as an index into internal battle-size tables. Do not assign raw troop counts directly to `BannerlordConfig.BattleSize`; rewrite the private tables and set a valid index instead.
 - **Requested maximum semantics:** Treat the configured `CustomBattleSize` as the top-end troop count for field, siege, and sally-out tables, not just field battles.
-- **Early getter override plus siege constructor override:** Mission spawn logic captures battle size before `OnMissionBehaviorInitialize`, and current builds also clamp siege openings to half of the native agent ceiling. Keep both the Harmony getter patch and the siege constructor override in place.
+- **Early getter override plus constructor override:** Mission spawn logic captures battle size before `OnMissionBehaviorInitialize`, and current builds also clamp opening deployments to half of the native agent ceiling. Keep both the Harmony getter patch and the constructor override in place. Siege and sally-out missions use the full agent ceiling (no mounts); field battles use `FieldBattleMountReserveFraction` (2/3) of the ceiling to stay crash-safe when cavalry mounts consume extra agent slots.
 
 ## Code Conventions
 
