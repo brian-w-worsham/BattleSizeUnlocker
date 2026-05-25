@@ -1,4 +1,6 @@
 using HarmonyLib;
+using System;
+using System.Reflection;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
@@ -12,8 +14,8 @@ namespace BattleSizeUnlocker.Patches
     /// </summary>
     internal static class MissionAgentSpawnLogicPatches
     {
-        private static readonly AccessTools.FieldRef<MissionAgentSpawnLogic, int> BattleSizeField =
-            AccessTools.FieldRefAccess<MissionAgentSpawnLogic, int>("_battleSize");
+        private const string LegacySpawnLogicTypeName = "TaleWorlds.MountAndBlade.MissionAgentSpawnLogic";
+        private const string CurrentSpawnLogicTypeName = "TaleWorlds.MountAndBlade.DefaultBattleMissionAgentSpawnLogic";
 
         /// <summary>
         /// Explicitly patches the MissionAgentSpawnLogic constructor. Called from Main.OnSubModuleLoad
@@ -21,8 +23,18 @@ namespace BattleSizeUnlocker.Patches
         /// </summary>
         internal static void ApplyPatch(Harmony harmony)
         {
+            Type spawnLogicType = ResolveSpawnLogicType();
+            if (spawnLogicType == null)
+            {
+                InformationManager.DisplayMessage(
+                    new InformationMessage(
+                        "[BattleSizeUnlocker] ERROR: Mission spawn logic type not found - opening troop cap patch not applied.",
+                        Colors.Red));
+                return;
+            }
+
             var ctor = AccessTools.Constructor(
-                typeof(MissionAgentSpawnLogic),
+                spawnLogicType,
                 new[] { typeof(IMissionTroopSupplier[]), typeof(BattleSideEnum), typeof(Mission.BattleSizeType) });
 
             if (ctor == null)
@@ -39,10 +51,31 @@ namespace BattleSizeUnlocker.Patches
 
         internal static class ConstructorPatch
         {
-            internal static void Postfix(MissionAgentSpawnLogic __instance, Mission.BattleSizeType battleSizeType)
+            internal static void Postfix(object __instance, Mission.BattleSizeType battleSizeType)
             {
-                int engineAgentCeiling = MissionAgentSpawnLogic.MaxNumberOfAgentsForMission;
-                int battleSizeBeforeAdjust = __instance.BattleSize;
+                if (__instance == null)
+                {
+                    return;
+                }
+
+                Type instanceType = __instance.GetType();
+                PropertyInfo maxAgentsProperty = AccessTools.Property(instanceType, "MaxNumberOfAgentsForMission");
+                PropertyInfo battleSizeProperty = AccessTools.Property(instanceType, "BattleSize");
+                FieldInfo battleSizeField = AccessTools.Field(instanceType, "_battleSize");
+                if (maxAgentsProperty == null || battleSizeProperty == null || battleSizeField == null)
+                {
+                    return;
+                }
+
+                MethodInfo maxAgentsGetter = maxAgentsProperty.GetGetMethod(true);
+                if (maxAgentsGetter == null)
+                {
+                    return;
+                }
+
+                object maxAgentsTarget = maxAgentsGetter.IsStatic ? null : __instance;
+                int engineAgentCeiling = (int)maxAgentsGetter.Invoke(maxAgentsTarget, null);
+                int battleSizeBeforeAdjust = (int)battleSizeProperty.GetValue(__instance, null);
 
                 int adjustedBattleSize;
                 if (battleSizeType == Mission.BattleSizeType.Battle)
@@ -60,9 +93,15 @@ namespace BattleSizeUnlocker.Patches
 
                 if (adjustedBattleSize > battleSizeBeforeAdjust)
                 {
-                    BattleSizeField(__instance) = adjustedBattleSize;
+                    battleSizeField.SetValue(__instance, adjustedBattleSize);
                 }
             }
+        }
+
+        private static Type ResolveSpawnLogicType()
+        {
+            return AccessTools.TypeByName(CurrentSpawnLogicTypeName)
+                   ?? AccessTools.TypeByName(LegacySpawnLogicTypeName);
         }
     }
 }

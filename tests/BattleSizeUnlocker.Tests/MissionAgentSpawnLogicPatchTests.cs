@@ -24,9 +24,15 @@ namespace BattleSizeUnlocker.Tests
         [Fact]
         public void ApplyPatch_TargetsExpectedConstructorArgumentTypes()
         {
+            var spawnLogicType =
+                AccessTools.TypeByName("TaleWorlds.MountAndBlade.DefaultBattleMissionAgentSpawnLogic")
+                ?? AccessTools.TypeByName("TaleWorlds.MountAndBlade.MissionAgentSpawnLogic");
+
+            Assert.NotNull(spawnLogicType);
+
             // Verify the constructor AccessTools would find using the same signature used in ApplyPatch.
             var ctor = AccessTools.Constructor(
-                typeof(MissionAgentSpawnLogic),
+                spawnLogicType,
                 new[] { typeof(IMissionTroopSupplier[]), typeof(BattleSideEnum), typeof(Mission.BattleSizeType) });
 
             Assert.NotNull(ctor);
